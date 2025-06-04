@@ -1,2 +1,5 @@
 - Add the Hash of the key that generated from the --init argument
   to prevent using other keys for new passwords
+
+- Added the beta new argument reader
+	Finally! switching to HashMap argument reader :>
