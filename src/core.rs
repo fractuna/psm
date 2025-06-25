@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 
 use crate::args::{CfgField, Config};
+use crate::args_beta::ArgAction;
 use crate::password::{self};
 use crate::util::{self, is_origin_exists, origin_add};
 use aes_gcm::aead::Nonce;
@@ -173,137 +175,157 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
     return Ok(());
 }
 
-pub fn process_args(config: &Config) -> Result<String, String> {
-    if let Some(_) = config.IsInitOrigin() {
-        if let Err(err) = fs::create_dir("./pass") {
-            return Err(format!("Can't make the origin folder"));
-        }
-        // TODO: Make a single function to generate key
-        let n_key = generate_random_key();
-        let m_key = BASE64_STANDARD.encode(n_key);
-
-        let origin_meta = fs::File::create("./pass/meta");
-        if let Ok(mut meta_file) = origin_meta {
-            if let Err(_) = meta_file.write_all(util::get_hash(&m_key).as_bytes()) {
-                return Err(format!("Can't add data to the origin's metadata file"));
-            }
-        } else {
-            return Err(format!("Can't create the metadata file for origin"));
-        }
-        println!();
-        return Ok(format!(
-            "Sucsessfully generated the origin :D\nThis is your new key: {}\n",
-            String::from(m_key),
-        ));
-    }
-
-    if config.list_passwords.IsExists() {
-        if let Err(err) = util::list_origin() {
-            return Err(format!("list origin{}", err));
-        }
-        return Ok(String::default());
-    }
-
-    // TODO: Make a better process if statement
-    if let Some(_) = config.IsNewPassword() {
-        // Check for existsing of origin
-
-        let new_pass = config.IsNewPassword();
-        let new_desc = config.IsNewDescription(); // Make a better output (return)
-        let l_new_name: Option<&CfgField> = config.IsNewName();
-        let l_generate_pass: Option<&CfgField> = config.IsGeneratePassword();
-        let l_key: Option<&CfgField> = config.IsKeyExists();
-
-        if let None = l_new_name {
-            return Err(String::from("Please Provide a name for your password"));
-        }
-
-        let mut n_key: Vec<u8> = Vec::default();
-        let mut is_new_key: bool = false;
-        let actual_key: &[u8] = &[0; 30];
-        let m_key: Vec<u8>;
-
-        // Check the password validity
-        if let Err(err) = validate_user_key(&l_key.unwrap().value) {
-            return Err(format!("Key: {err}"));
-        }
-
-        if let None = l_key {
-            if let None = l_generate_pass {
-                return Err(String::from(
-                    "Please Provide your main key for encryption the password",
-                ));
-            } else {
-                if (util::is_origin_exists()) {
-                    return Err(String::from("You already made the base key.\nPlease use the same key or make another with `psm -g`"));
+// TODO: This code is doing some over work, it needs to be better
+pub fn process_args(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    // name == key and age == value (IDK why I names them like this, but it feels home :D)
+    for (name, age) in config {
+        // println!("{}", name);
+        if (age.isActive()) {
+            let result: String = match name {
+                &"init" => {
+                    let response = age.call(config);
+                    response
                 }
-                n_key = generate_random_key();
-                is_new_key = true;
-                m_key = BASE64_STANDARD.decode(&n_key).unwrap();
-            }
-        } else {
-            m_key = BASE64_STANDARD.decode(&l_key.unwrap().value).unwrap();
-            // println!(
-            //     "This is the ready to use key for make new password {:?}",
-            //     actual_key
-            // );
+                &_ => {
+                    format!("EMPTY")
+                }
+            };
+            println!("{}", result);
         }
-
-        if let Err(err) = add_new_password(
-            new_pass.unwrap(),
-            new_desc,
-            l_new_name.unwrap(),
-            m_key,
-            is_new_key,
-        ) {
-            // Ok(_) => {
-            //     println!("+ Your new password added to the system");
-            // }
-            return Err(err);
-        }
-        return Ok(format!("Succsessfully update your password list"));
-    } else if let Some(p_name) = config.IsNewName() {
-        // Check for existsing of origin
-        if !is_origin_exists() {
-            return Err(String::from(
-                "Can't find the origin path. Please make one with `psm --init or psm -i`",
-            ));
-        }
-        let key = config.IsKeyExists();
-        if let None = key {
-            return Err(String::from("Please provide the key"));
-        }
-        let key = key.unwrap();
-
-        if let Err(err) = validate_user_key(&key.value) {
-            return Err(format!("Key: {err}"));
-        }
-
-        if let Err(err) = show_password(&p_name.value, &key.value) {
-            return Err(format!("Print: {}", err));
-        }
-        return Ok(String::default());
-    } else if let Some(list_pass) = config.IsListPassword() {
-        // Check for existsing of origin
-        if !is_origin_exists() {
-            return Err(String::from(
-                "Can't find the origin path. Please make one with `psm --init or psm -i`",
-            ));
-        }
-        if let Err(err) = print_list_passwords(list_pass) {
-            return Err(format!("Can't show the list of passwords cause: {}", err));
-        }
-        return Ok(String::default());
-    } else if let Some(_) = config.IsRessetOrigin() {
-        // Check for existsing of origin
-        if !is_origin_exists() {
-            return Err(String::from(
-                "Can't find the origin path. Please make one with `psm --init or psm -i`",
-            ));
-        }
-        // TODO: remove origin recursive
-        return Ok(String::from("[+] Succsessfully resset the origin"));
-    } else {
-        return Err(String::from("Please provide a option"));
     }
+    Ok(format!("OKH"))
+    /*
+        if  {
+            if let Err(err) = fs::create_dir("./pass") {
+                return Err(format!("Can't make the origin folder"));
+            }
+            // TODO: Make a single function to generate key
+            let n_key = generate_random_key();
+            let m_key = BASE64_STANDARD.encode(n_key);
+
+            let origin_meta = fs::File::create("./pass/meta");
+            if let Ok(mut meta_file) = origin_meta {
+                if let Err(_) = meta_file.write_all(util::get_hash(&m_key).as_bytes()) {
+                    return Err(format!("Can't add data to the origin's metadata file"));
+                }
+            } else {
+                return Err(format!("Can't create the metadata file for origin"));
+            }
+            println!();
+            return Ok(format!(
+                "Sucsessfully generated the origin :D\nThis is your new key: {}\n",
+                String::from(m_key),
+            ));
+        }
+
+        if config.list_passwords.IsExists() {
+            if let Err(err) = util::list_origin() {
+                return Err(format!("list origin{}", err));
+            }
+            return Ok(String::default());
+        }
+
+        // TODO: Make a better process if statement
+        if let Some(_) = config.IsNewPassword() {
+            // Check for existsing of origin
+
+            let new_pass = config.IsNewPassword();
+            let new_desc = config.IsNewDescription(); // Make a better output (return)
+            let l_new_name: Option<&CfgField> = config.IsNewName();
+            let l_generate_pass: Option<&CfgField> = config.IsGeneratePassword();
+            let l_key: Option<&CfgField> = config.IsKeyExists();
+
+            if let None = l_new_name {
+                return Err(String::from("Please Provide a name for your password"));
+            }
+
+            let mut n_key: Vec<u8> = Vec::default();
+            let mut is_new_key: bool = false;
+            let actual_key: &[u8] = &[0; 30];
+            let m_key: Vec<u8>;
+
+            // Check the password validity
+            if let Err(err) = validate_user_key(&l_key.unwrap().value) {
+                return Err(format!("Key: {err}"));
+            }
+
+            if let None = l_key {
+                if let None = l_generate_pass {
+                    return Err(String::from(
+                        "Please Provide your main key for encryption the password",
+                    ));
+                } else {
+                    if (util::is_origin_exists()) {
+                        return Err(String::from("You already made the base key.\nPlease use the same key or make another with `psm -g`"));
+                    }
+                    n_key = generate_random_key();
+                    is_new_key = true;
+                    m_key = BASE64_STANDARD.decode(&n_key).unwrap();
+                }
+            } else {
+                m_key = BASE64_STANDARD.decode(&l_key.unwrap().value).unwrap();
+                // println!(
+                //     "This is the ready to use key for make new password {:?}",
+                //     actual_key
+                // );
+            }
+
+            if let Err(err) = add_new_password(
+                new_pass.unwrap(),
+                new_desc,
+                l_new_name.unwrap(),
+                m_key,
+                is_new_key,
+            ) {
+                // Ok(_) => {
+                //     println!("+ Your new password added to the system");
+                // }
+                return Err(err);
+            }
+            return Ok(format!("Succsessfully update your password list"));
+        } else if let Some(p_name) = config.IsNewName() {
+            // Check for existsing of origin
+            if !is_origin_exists() {
+                return Err(String::from(
+                    "Can't find the origin path. Please make one with `psm --init or psm -i`",
+                ));
+            }
+            let key = config.IsKeyExists();
+            if let None = key {
+                return Err(String::from("Please provide the key"));
+            }
+            let key = key.unwrap();
+
+            if let Err(err) = validate_user_key(&key.value) {
+                return Err(format!("Key: {err}"));
+            }
+
+            if let Err(err) = show_password(&p_name.value, &key.value) {
+                return Err(format!("Print: {}", err));
+            }
+            return Ok(String::default());
+        } else if let Some(list_pass) = config.IsListPassword() {
+            // Check for existsing of origin
+            if !is_origin_exists() {
+                return Err(String::from(
+                    "Can't find the origin path. Please make one with `psm --init or psm -i`",
+                ));
+            }
+            if let Err(err) = print_list_passwords(list_pass) {
+                return Err(format!("Can't show the list of passwords cause: {}", err));
+            }
+            return Ok(String::default());
+        } else if let Some(_) = config.IsRessetOrigin() {
+            // Check for existsing of origin
+            if !is_origin_exists() {
+                return Err(String::from(
+                    "Can't find the origin path. Please make one with `psm --init or psm -i`",
+                ));
+            }
+            // TODO: remove origin recursive
+            return Ok(String::from("[+] Succsessfully resset the origin"));
+        } else {
+            return Err(String::from("Please provide a option"));
+        }
+    */
 }

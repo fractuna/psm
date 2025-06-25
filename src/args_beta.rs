@@ -4,7 +4,7 @@ fn version() -> String {
     return format!("Version 1.0");
 }
 
-type ArgCallback = fn(&str, &str) -> String;
+type ArgCallback = fn(&HashMap<&'static str, ArgAction>) -> String;
 
 #[derive(Debug)]
 pub struct ArgAction {
@@ -29,7 +29,7 @@ impl ArgAction {
         )
     }
 
-    fn isActive(&self) -> bool {
+    pub fn isActive(&self) -> bool {
         self.used
     }
 
@@ -37,36 +37,50 @@ impl ArgAction {
         self.used = true;
     }
 
-    fn get_key(&self) -> &str {
+    pub fn get_key(&self) -> &str {
         self.key
     }
 
-    fn set_value(&mut self, value: String) {
+    pub fn set_value(&mut self, value: String) {
         self.value = value;
     }
 
-    fn get_value(&self) -> String {
+    pub fn get_value(&self) -> String {
         format!("{}", self.value)
     }
 
-    fn call(&self) -> String {
-        (self.callback)(self.key, &self.value)
+    pub fn call(&self, ref_action: &HashMap<&'static str, Self>) -> String {
+        (self.callback)(ref_action)
     }
 }
 
-fn init_callback(key: &str, value: &str) -> String {
-    format!("ASD")
+fn check_deps(config: &HashMap<&'static str, ArgAction>, deps: Vec<&'static str>) -> bool {
+    for i in deps {
+        if !config.get(i).unwrap().isActive() {
+            return false;
+        }
+    }
+    return true;
 }
 
-fn version_callback(key: &str, value: &str) -> String {
+fn init_callback(config: &HashMap<&'static str, ArgAction>) -> String {
+    let mut deps: Vec<&'static str> = Vec::new();
+    deps.push("version");
+    if !check_deps(config, deps) {
+        return format!("Can't process this argument");
+    }
+    format!("This is the desc if you need")
+}
+
+fn version_callback(config: &HashMap<&'static str, ArgAction>) -> String {
     format!("3.0.1")
 }
 
-fn get_callback(key: &str, value: &str) -> String {
+fn get_callback(config: &HashMap<&'static str, ArgAction>) -> String {
     format!("3.0.1")
 }
 
-pub fn argument_parser(args: Vec<String>) -> HashMap<String, String> {
+pub fn argument_parser(args: Vec<String>) -> Result<HashMap<&'static str, ArgAction>, String> {
     let list_of_keys: Vec<(&'static str, ArgAction)> = vec![
         ArgAction::new("init", init_callback, true),
         ArgAction::new("version", version_callback, true),
@@ -88,7 +102,7 @@ pub fn argument_parser(args: Vec<String>) -> HashMap<String, String> {
         if mode == true {
             let key_obj: Option<&mut ArgAction> = keys.get_mut(v.as_str());
             if let Some(x) = key_obj {
-                // arg_map.insert(String::from(x.get_key()), format!("TMP"));
+                arg_map.insert(String::from(x.get_key()), format!("TMP"));
                 // x.set_value(v.clone());
                 x.active();
                 if x.only_key == false {
@@ -111,5 +125,5 @@ pub fn argument_parser(args: Vec<String>) -> HashMap<String, String> {
         }
     }
     println!("{:?}", keys);
-    arg_map
+    Ok(keys)
 }
