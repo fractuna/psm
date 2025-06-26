@@ -6,7 +6,7 @@ use std::io::stdin;
 use std::io::Write;
 use std::path::Path;
 
-pub fn banner(version: f64) {
+pub fn banner(version: &'static str) {
     println!(
         "MyPass password manager version {} \n\
         A simple and powerfull password manager \n\

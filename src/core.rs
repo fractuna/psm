@@ -175,33 +175,25 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
     return Ok(());
 }
 
-// TODO: This code is doing some over work, it needs to be better
 pub fn process_args(
     config: &HashMap<&'static str, ArgAction>,
     master_key: &str,
 ) -> Result<String, String> {
-    println!("This is the master key: {}", master_key);
+    // println!("This is the master key: {}", master_key);
+
+    // we wil remove the master key arg to don't reuse it functions like
+    // args::check_deps.
     let mut config_arg = config.clone();
     config_arg.remove(master_key);
-    // for i in &config_arg {
-    //     println!("{}", i.0);
-    // }
-    // name == key and age == value (IDK why I names them like this, but it feels home :D)
+
+    // Call the proporiet function based on the master_key (main arg)
     let result = config.get(master_key).unwrap().call(&config_arg);
     if let Err(error) = result {
         return Err(error);
     }
     // let result: String = match *name {
-    //     "init" => {
-    //         let response = age.call(config);
-    //         response
-    //     }
-    //     &_ => {
-    //         format!("EMPTY")
-    //     }
-    // };
-    println!("{}", result.unwrap());
-    Ok(format!("OKH"))
+    // println!("{}", result.unwrap());
+    Ok(result.unwrap())
     /*
         if  {
             if let Err(err) = fs::create_dir("./pass") {
