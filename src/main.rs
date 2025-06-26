@@ -13,13 +13,13 @@ const VERSION: f64 = 0.1;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let parsed_args = argument_parser(args).unwrap_or_else(|err: String| {
+    let mut parsed_args = argument_parser(args).unwrap_or_else(|err: String| {
         banner(VERSION);
         println!("\n{}", err);
         exit(1);
     });
     // // println!("{:?}", config);
-    let res: Result<String, String> = core::process_args(&parsed_args);
+    let res: Result<String, String> = core::process_args(&mut parsed_args.0, &parsed_args.1);
     match res {
         Ok(valv) => {
             if valv != String::default() {

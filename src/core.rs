@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::fs;
 use std::io::{Read, Write};
+use std::{fs, result};
 
 use crate::args::{CfgField, Config};
 use crate::args_beta::ArgAction;
@@ -176,23 +176,31 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
 }
 
 // TODO: This code is doing some over work, it needs to be better
-pub fn process_args(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+pub fn process_args(
+    config: &HashMap<&'static str, ArgAction>,
+    master_key: &str,
+) -> Result<String, String> {
+    println!("This is the master key: {}", master_key);
+    let mut config_arg = config.clone();
+    config_arg.remove(master_key);
+    // for i in &config_arg {
+    //     println!("{}", i.0);
+    // }
     // name == key and age == value (IDK why I names them like this, but it feels home :D)
-    for (name, age) in config {
-        // println!("{}", name);
-        if (age.isActive()) {
-            let result: String = match name {
-                &"init" => {
-                    let response = age.call(config);
-                    response
-                }
-                &_ => {
-                    format!("EMPTY")
-                }
-            };
-            println!("{}", result);
-        }
+    let result = config.get(master_key).unwrap().call(&config_arg);
+    if let Err(error) = result {
+        return Err(error);
     }
+    // let result: String = match *name {
+    //     "init" => {
+    //         let response = age.call(config);
+    //         response
+    //     }
+    //     &_ => {
+    //         format!("EMPTY")
+    //     }
+    // };
+    println!("{}", result.unwrap());
     Ok(format!("OKH"))
     /*
         if  {
