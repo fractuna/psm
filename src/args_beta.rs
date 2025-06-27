@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::core::{create_callback, init_callback, remove_origin_callback};
+
 type ArgCallback = fn(&HashMap<&'static str, ArgAction>) -> Result<String, String>;
 
 #[derive(Debug, Clone)]
@@ -54,6 +56,18 @@ impl ArgAction {
         self.order = value;
     }
 
+    pub fn get_order(&self) -> usize {
+        return self.order;
+    }
+
+    // TODO: Use custome callback instead of static method
+    pub fn validate_value(&self, deps: Vec<&'static str>) -> Result<(), String> {
+        if (!deps.contains(&self.get_value().as_str())) {
+            return Err(format!("Can't validate the command mode!"));
+        }
+        Ok(())
+    }
+
     pub fn get_desc(&self) -> &'static str {
         return self.description;
     }
@@ -65,6 +79,15 @@ impl ArgAction {
     pub fn call(&self, ref_action: &HashMap<&'static str, Self>) -> Result<String, String> {
         (self.callback)(ref_action)
     }
+}
+
+pub fn get_arg_by_order(p_args: &HashMap<&'static str, ArgAction>, order: usize) -> Option<String> {
+    for (name, value) in p_args {
+        if value.get_order() == order {
+            return Some((*name).to_string());
+        }
+    }
+    return None;
 }
 
 pub fn createDoc(p_args: &HashMap<&'static str, ArgAction>) -> String {
@@ -79,42 +102,12 @@ pub fn createDoc(p_args: &HashMap<&'static str, ArgAction>) -> String {
     output
 }
 
-fn check_deps(config: &HashMap<&'static str, ArgAction>, deps: Vec<&'static str>) -> bool {
-    for i in deps {
-        if config.get(i).unwrap().isActive() == false {
-            return false;
-        }
-    }
-    return true;
-}
-
-fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    Ok(format!("This is the desc if you need"))
-}
-
 fn version_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
     Ok(format!("{}", crate::VERSION))
 }
 
 fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
     Ok(format!("3.0.1"))
-}
-
-fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    let deps = vec!["name", "description", "key"];
-    if !check_deps(config, deps) {
-        return Err(format!("Can't process because of the deps!"));
-    }
-
-    let name = config.get("name").unwrap().call(config).unwrap();
-    let description = config.get("description").unwrap().get_value();
-    let key = config.get("key").unwrap().get_value();
-
-    println!("Creating password with this name: {}", name);
-    println!("Creating password with this description: {}", description);
-    println!("Creating password with this key: {}", key);
-
-    Ok(format!("asd"))
 }
 
 fn name_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
@@ -146,19 +139,30 @@ pub fn argument_parser(
             "print the program's version",
         ),
         ArgAction::new("get", get_callback, true, "get the password by name"),
-        ArgAction::new("name", name_callback, false, "set a name for password"),
+        ArgAction::new(
+            "remove",
+            remove_origin_callback,
+            false,
+            "remove data [name, all, date]",
+        ),
+        ArgAction::new(
+            "name",
+            name_callback,
+            false,
+            "set a name for password [text]",
+        ),
         ArgAction::new("create", create_callback, true, "create a new password"),
         ArgAction::new(
             "description",
             description_callback,
             false,
-            "set description for password",
+            "set description for password [text]",
         ),
         ArgAction::new(
             "key",
             key_callback,
             false,
-            "set key to encrypt the passwords",
+            "set key to encrypt the passwords [text]",
         ),
     ];
 

@@ -1,11 +1,13 @@
+use chrono::prelude::*;
+use std::any::Any;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::{fs, result};
 
 use crate::args::{CfgField, Config};
-use crate::args_beta::ArgAction;
+use crate::args_beta::{get_arg_by_order, ArgAction};
 use crate::password::{self};
-use crate::util::{self, is_origin_exists, origin_add};
+use crate::util::{self, is_origin_exists, origin_add, remove_origin};
 use aes_gcm::aead::Nonce;
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -158,7 +160,7 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
         return Err(format!("The key is not valid!"));
     }
 
-    if let Ok(mut v) = fs::File::open("./pass/meta") {
+    if let Ok(mut v) = fs::File::open("./.pass/meta") {
         if let Err(_) = v.read_to_string(&mut f_key) {
             return Err(format!(
                 "There is a problem in origin structure, please do the `psm --init` again"
@@ -175,19 +177,139 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
     return Ok(());
 }
 
+fn check_deps(config: &HashMap<&'static str, ArgAction>, deps: Vec<&'static str>) -> bool {
+    for i in deps {
+        if config.get(i).unwrap().isActive() == false {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn check_deps_partial(arg: &str, deps: Vec<&'static str>) -> bool {
+    let sucsess: bool = false;
+    for i in deps {
+        if i == arg {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn remove_origin_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    let remove_obj = config.get("remove").unwrap();
+
+    remove_obj.validate_value(vec!["all", "name", "date"])?;
+
+    let result: String = match remove_obj.get_value().as_str() {
+        "all" => {
+            if (!util::remove_origin()) {
+                return Err(format!("There was a problem when removing your origin"));
+            }
+            format!("Successfully removed the origin environment")
+        }
+        "name" => {
+            format!("NAME")
+        }
+        "date" => {
+            format!("DATE")
+        }
+        &_ => {
+            format!("NFOUND")
+        }
+    };
+
+    return Ok(result);
+}
+
+pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    // First check if origin is initilized
+    if (!util::is_origin_exists()) {
+        return Err(format!(
+            "Please first initialize the program with 'psm init'"
+        ));
+    }
+
+    let deps = vec!["name", "description", "key"];
+    if !check_deps(config, deps) {
+        return Err(format!("Can't process because of the deps!"));
+    }
+
+    let name = config.get("name").unwrap().call(config).unwrap();
+    let description = config.get("description").unwrap().get_value();
+    let key = config.get("key").unwrap().get_value();
+
+    println!("Creating password with this name: {}", name);
+    println!("Creating password with this description: {}", description);
+    // println!("Creating password with this key: {}", key); // TODO: Fancy printing key
+
+    // Check the key validation
+    if let Err(err) = validate_user_key(&key) {
+        return Err(format!(
+            "Can't validate your key, because {}",
+            err.to_string()
+        ));
+    }
+
+    let cur_date = Utc::now();
+    let mut base: password::Password =
+        password::Password::new(name.clone(), description.clone(), cur_date.to_string());
+
+    let m_key = BASE64_STANDARD.decode(&key);
+    if let Err(err) = m_key {
+        return Err(format!("Can't read the key, cause {}", err.to_string()));
+    }
+
+    let m_key = m_key.unwrap();
+
+    Ok(format!("{:?}", m_key))
+}
+
+// A function to create/initialize the origin environment
+pub fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    // No deps for this function
+
+    // First, check if there is already a origin dir
+    if util::is_origin_exists() {
+        return Err(format!("You already have the origin, please remove the old one if you want to use this command\nNotice: you can remove the origin by using 'psm remove origin'"));
+    }
+
+    // Second: Try to create the origin dir
+    if let Err(err) = fs::create_dir("./.pass") {
+        return Err(format!("Can't make the origin folder"));
+    }
+
+    // Next: try to make a new key and base64 it
+    // TODO: Make a single function to generate key
+    let n_key = generate_random_key();
+    let m_key = BASE64_STANDARD.encode(n_key);
+
+    // Next: try to make a meta file to save metadata about origin
+    let origin_meta = fs::File::create("./.pass/meta");
+    if let Ok(mut meta_file) = origin_meta {
+        if let Err(_) = meta_file.write_all(util::get_hash(&m_key).as_bytes()) {
+            return Err(format!("Can't add data to the origin's metadata file"));
+        }
+    } else {
+        return Err(format!("Can't create the metadata file for origin"));
+    }
+
+    // Print out the key and succsess message
+    println!();
+    return Ok(format!(
+        "Sucsessfully generated the origin :D\nThis is your new key: {}\n",
+        String::from(m_key),
+    ));
+}
+
 pub fn process_args(
     config: &HashMap<&'static str, ArgAction>,
     master_key: &str,
 ) -> Result<String, String> {
     // println!("This is the master key: {}", master_key);
 
-    // we wil remove the master key arg to don't reuse it functions like
-    // args::check_deps.
-    let mut config_arg = config.clone();
-    config_arg.remove(master_key);
-
     // Call the proporiet function based on the master_key (main arg)
-    let result = config.get(master_key).unwrap().call(&config_arg);
+    let result = config.get(master_key).unwrap().call(&config);
     if let Err(error) = result {
         return Err(error);
     }

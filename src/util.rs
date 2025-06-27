@@ -225,9 +225,19 @@ pub fn is_data_exists(name: &str) -> bool {
     return false;
 }
 
+pub fn remove_origin() -> bool {
+    if !is_origin_exists() {
+        return false;
+    }
+    if let Err(_) = fs::remove_dir_all("./.pass") {
+        return false;
+    }
+
+    return true;
+}
 // Check is there is any global .pass folder
 pub fn is_origin_exists() -> bool {
-    if Path::new("./pass").exists() {
+    if Path::new("./.pass").exists() {
         return true;
     }
     return false;
