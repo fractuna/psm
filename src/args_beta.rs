@@ -1,4 +1,9 @@
-use std::collections::HashMap;
+use core::borrow;
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use crate::core::{create_callback, init_callback, remove_origin_callback};
 
@@ -12,7 +17,9 @@ pub struct ArgAction {
     used: bool,
     callback: ArgCallback,
     description: &'static str,
+    deps: RefCell<HashMap<&'static str, ArgAction>>,
     order: usize,
+    priority: usize,
 }
 
 impl ArgAction {
@@ -21,6 +28,7 @@ impl ArgAction {
         callback: ArgCallback,
         only_key: bool,
         description: &'static str,
+        priority: usize,
     ) -> (&'static str, ArgAction) {
         (
             key,
@@ -31,7 +39,9 @@ impl ArgAction {
                 used: false,
                 only_key,
                 description,
+                deps: RefCell::new(HashMap::new()),
                 order: 0,
+                priority,
             },
         )
     }
@@ -52,6 +62,14 @@ impl ArgAction {
         self.value = value;
     }
 
+    pub fn get_priority(&self) -> usize {
+        self.priority
+    }
+
+    pub fn set_priority(&mut self, value: usize) {
+        self.priority = value;
+    }
+
     pub fn set_order(&mut self, value: usize) {
         self.order = value;
     }
@@ -60,12 +78,29 @@ impl ArgAction {
         return self.order;
     }
 
+    // pub fn addDep(&mut self, dep: &ArgAction) -> Result<(), &'static str> {
+    //     let inner = self.deps.borrow_mut();
+    //     inner.insert(dep.get_key(), dep.clone());
+    //     Ok(())
+    // }
+
+    pub fn activeDep(&self, depen_name: &str) {
+        let mut deps_tmp = self.deps.borrow_mut();
+        if let Some(x) = deps_tmp.get_mut(depen_name) {
+            x.active();
+        }
+    }
+
     // TODO: Use custome callback instead of static method
     pub fn validate_value(&self, deps: Vec<&'static str>) -> Result<(), String> {
         if (!deps.contains(&self.get_value().as_str())) {
             return Err(format!("Can't validate the command mode!"));
         }
         Ok(())
+    }
+
+    pub fn check_deps(&self, depen_name: &str) -> bool {
+        self.deps.borrow_mut().contains_key(depen_name)
     }
 
     pub fn get_desc(&self) -> &'static str {
@@ -131,42 +166,50 @@ pub fn argument_parser(
             init_callback,
             true,
             "To initilize the password environment",
+            1,
         ),
         ArgAction::new(
             "version",
             version_callback,
             true,
             "print the program's version",
+            1,
         ),
-        ArgAction::new("get", get_callback, true, "get the password by name"),
+        ArgAction::new("get", get_callback, true, "get the password by name", 1),
         ArgAction::new(
             "remove",
             remove_origin_callback,
-            false,
+            true,
             "remove data [name, all, date]",
+            1,
         ),
         ArgAction::new(
             "name",
             name_callback,
             false,
             "set a name for password [text]",
+            0,
         ),
-        ArgAction::new("create", create_callback, true, "create a new password"),
+        ArgAction::new("create", create_callback, true, "create a new password", 1),
         ArgAction::new(
             "description",
             description_callback,
             false,
             "set description for password [text]",
+            0,
         ),
         ArgAction::new(
             "key",
             key_callback,
             false,
             "set key to encrypt the passwords [text]",
+            0,
         ),
     ];
 
-    let mut keys: HashMap<&'static str, ArgAction> = HashMap::from_iter(list_of_keys);
+    let mut keys: RefCell<HashMap<&'static str, ArgAction>> =
+        RefCell::new(HashMap::from_iter(list_of_keys));
+
     let mut mode: bool = true;
     let mut arg_map: HashMap<String, String> = HashMap::new();
     let mut key_tmp: String = String::new();
@@ -176,7 +219,8 @@ pub fn argument_parser(
     let mut order_counter: usize = 0;
     for v in args_l {
         if mode == true {
-            let key_obj: Option<&mut ArgAction> = keys.get_mut(v.as_str());
+            let mut b_keys = keys.borrow_mut();
+            let key_obj: Option<&mut ArgAction> = b_keys.get_mut(v.as_str());
             if let Some(x) = key_obj {
                 arg_map.insert(String::from(x.get_key()), format!("TMP"));
                 // x.set_value(v.clone());
@@ -189,11 +233,19 @@ pub fn argument_parser(
                 key_tmp = v;
             }
         } else if mode == false {
-            let key_obj: Option<&mut ArgAction> = keys.get_mut(key_tmp.as_str());
+            let mut b_keys = keys.borrow_mut();
+            let key_obj: Option<&mut ArgAction> = b_keys.get_mut(key_tmp.as_str());
             if let Some(x) = key_obj {
-                // arg_map.insert(String::from(x.get_key()), format!("TMP"));
+                // If 'V' itself is a argument passed by keys
+                // Then we need to store the v object inside deps of the
+                // wanted key
+
                 if x.isActive() {
-                    x.set_value(v.clone());
+                    if x.check_deps(v.as_str()) {
+                        x.activeDep(v.as_str());
+                    } else {
+                        x.set_value(v.clone());
+                    }
                 }
                 // println!("{:?}", x);
             }
@@ -203,5 +255,5 @@ pub fn argument_parser(
         }
     }
     println!("{:?}", keys);
-    Ok((keys, master_arg))
+    Ok((keys.into_inner(), master_arg))
 }

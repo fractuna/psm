@@ -197,27 +197,27 @@ fn check_deps_partial(arg: &str, deps: Vec<&'static str>) -> bool {
 }
 
 pub fn remove_origin_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    let remove_obj = config.get("remove").unwrap();
+    let result = String::new();
 
-    remove_obj.validate_value(vec!["all", "name", "date"])?;
+    // let caller = config.get("remove").findDep("name");
+    // caller.call();
 
-    let result: String = match remove_obj.get_value().as_str() {
-        "all" => {
-            if (!util::remove_origin()) {
-                return Err(format!("There was a problem when removing your origin"));
-            }
-            format!("Successfully removed the origin environment")
-        }
-        "name" => {
-            format!("NAME")
-        }
-        "date" => {
-            format!("DATE")
-        }
-        &_ => {
-            format!("NFOUND")
-        }
-    };
+    // let remove_obj = config.get("remove").unwrap();
+    //
+    // remove_obj.validate_value(vec!["all", "name", "date"])?;
+    //
+    // let result: String = match remove_obj.get_value().as_str() {
+    //     "all" => {
+    //         if (!util::remove_origin()) {
+    //             return Err(format!("There was a problem when removing your origin"));
+    //         }
+    //         format!("Successfully removed the origin environment")
+    //     }
+    //     // name
+    //     &_ => {
+    //         format!("NFOUND")
+    //     }
+    // };
 
     return Ok(result);
 }
@@ -309,7 +309,11 @@ pub fn process_args(
     // println!("This is the master key: {}", master_key);
 
     // Call the proporiet function based on the master_key (main arg)
-    let result = config.get(master_key).unwrap().call(&config);
+    let g_obj = config.get(master_key).unwrap();
+    if g_obj.get_priority() <= 0 {
+        return Err(format!("Please pass the correct arguments"));
+    }
+    let result = g_obj.call(&config);
     if let Err(error) = result {
         return Err(error);
     }
