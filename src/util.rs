@@ -63,28 +63,28 @@ pub fn get_hash(key: &str) -> String {
 // Add password to the origin
 pub fn origin_add(password: &password::Password) -> Result<(), String> {
     if !is_data_exists(&password.name) {
-        if let Err(_) = fs::create_dir(format!("./pass/{}", &password.name)) {
+        if let Err(_) = fs::create_dir(format!(".pass/{}", &password.name)) {
             return Err(format!("[!] Can't find the password folder"));
         }
         // Make the meta file for saving metadata about the origin
     } else {
         // TODO: Ask the user to agree the existence of password
-        let answer = Ask(format!(
-            "You are overriting the current content of {} password, are you ok? [Y,n]? ",
-            &password.name
-        )
-        .as_str())?;
-
-        if !answer {
-            return Err(format!("Stop process by user input"));
-        }
-        // println!("[!] notice you are updating the exists password");
+        // let answer = Ask(format!(
+        //     "You are overriting the current content of {} password, are you ok? [Y,n]? ",
+        //     &password.name
+        // )
+        // .as_str())?;
+        //
+        // if !answer {
+        //     return Err(format!("Stop process by user input"));
+        // }
+        println!("[!] notice you are updating the exists password");
     }
 
     let data: String = format!("{}", password.value.clone());
     let meta: String = format!("{}\n{}", password.description, password.date);
 
-    let file_data = fs::File::create(format!("./pass/{}/data", &password.name));
+    let file_data = fs::File::create(format!("./.pass/{}/data", &password.name));
     if let Err(_) = file_data {
         return Err(format!("Can't make data file_data"));
     }
@@ -94,7 +94,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
         return Err(format!("Can't write to the file_data"));
     }
 
-    let file_meta = fs::File::create(format!("./pass/{}/meta", &password.name));
+    let file_meta = fs::File::create(format!("./.pass/{}/meta", &password.name));
     if let Err(_) = file_meta {
         return Err(format!("Can't make meta)) file"));
     }
@@ -218,8 +218,20 @@ pub fn AskStr(text: &str) -> Result<String, String> {
     }
 }
 
+pub fn remove_password(name: &str) -> bool {
+    if !is_data_exists(name) {
+        return false;
+    }
+
+    if let Err(_) = fs::remove_dir_all(format!(".pass/{}", name)) {
+        return false;
+    }
+
+    true
+}
+
 pub fn is_data_exists(name: &str) -> bool {
-    if Path::new(format!("./pass/{}", name).as_str()).exists() {
+    if Path::new(format!(".pass/{}", name).as_str()).exists() {
         return true;
     }
     return false;
@@ -229,7 +241,7 @@ pub fn remove_origin() -> bool {
     if !is_origin_exists() {
         return false;
     }
-    if let Err(_) = fs::remove_dir_all("./.pass") {
+    if let Err(_) = fs::remove_dir_all(".pass") {
         return false;
     }
 
@@ -237,7 +249,7 @@ pub fn remove_origin() -> bool {
 }
 // Check is there is any global .pass folder
 pub fn is_origin_exists() -> bool {
-    if Path::new("./.pass").exists() {
+    if Path::new(".pass").exists() {
         return true;
     }
     return false;

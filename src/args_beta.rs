@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::core::{create_callback, init_callback, remove_origin_callback};
+use crate::core::{create_callback, init_callback, password_callback, remove_origin_callback};
 
 type ArgCallback = fn(&HashMap<&'static str, ArgAction>) -> Result<String, String>;
 
@@ -15,7 +15,7 @@ pub struct ArgAction {
     value: String,
     only_key: bool,
     used: bool,
-    callback: ArgCallback,
+    callback: Option<ArgCallback>,
     description: &'static str,
     deps: RefCell<HashMap<&'static str, ArgAction>>,
     order: usize,
@@ -25,7 +25,7 @@ pub struct ArgAction {
 impl ArgAction {
     fn new(
         key: &'static str,
-        callback: ArgCallback,
+        callback: Option<ArgCallback>,
         only_key: bool,
         description: &'static str,
         priority: usize,
@@ -112,7 +112,11 @@ impl ArgAction {
     }
 
     pub fn call(&self, ref_action: &HashMap<&'static str, Self>) -> Result<String, String> {
-        (self.callback)(ref_action)
+        if let Some(x) = self.callback.as_ref() {
+            return (x)(ref_action);
+        }
+        return Err(format!("There is not any callback like this"));
+        // (self.callback)(ref_action)
     }
 }
 
@@ -163,48 +167,68 @@ pub fn argument_parser(
     let list_of_keys: Vec<(&'static str, ArgAction)> = vec![
         ArgAction::new(
             "init",
-            init_callback,
+            Some(init_callback),
             true,
             "To initilize the password environment",
             1,
         ),
         ArgAction::new(
             "version",
-            version_callback,
+            Some(version_callback),
             true,
             "print the program's version",
             1,
         ),
-        ArgAction::new("get", get_callback, true, "get the password by name", 1),
+        ArgAction::new(
+            "get",
+            Some(get_callback),
+            true,
+            "get the password by name",
+            1,
+        ),
+        ArgAction::new(
+            "password",
+            Some(password_callback),
+            false,
+            "set the password",
+            0,
+        ),
         ArgAction::new(
             "remove",
-            remove_origin_callback,
+            Some(remove_origin_callback),
             true,
             "remove data [name, all, date]",
             1,
         ),
         ArgAction::new(
             "name",
-            name_callback,
+            Some(name_callback),
             false,
             "set a name for password [text]",
             0,
         ),
-        ArgAction::new("create", create_callback, true, "create a new password", 1),
+        ArgAction::new(
+            "create",
+            Some(create_callback),
+            true,
+            "create a new password",
+            1,
+        ),
         ArgAction::new(
             "description",
-            description_callback,
+            Some(description_callback),
             false,
             "set description for password [text]",
             0,
         ),
         ArgAction::new(
             "key",
-            key_callback,
+            Some(key_callback),
             false,
             "set key to encrypt the passwords [text]",
             0,
         ),
+        ArgAction::new("all", None, true, "select all", 0),
     ];
 
     let mut keys: RefCell<HashMap<&'static str, ArgAction>> =

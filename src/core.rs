@@ -1,5 +1,4 @@
 use chrono::prelude::*;
-use std::any::Any;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::{fs, result};
@@ -18,39 +17,26 @@ use base64::prelude::*;
 const NONCE_SIZE_SAMPLE: usize = 12;
 
 fn add_new_password(
-    new_pass_field: &CfgField,
-    new_desc_field: &CfgField,
-    new_name_field: &CfgField,
-    key_field: Vec<u8>,
-    is_new_key: bool,
-) -> Result<(), String> {
+    p_name: &str,
+    p_desc: &str,
+    p_pass: &str,
+    key_field: &Vec<u8>,
+) -> Result<String, String> {
     // println!("{} - {}", config.new_name.name, config.new_name.value);
     let date: String = format!("2024"); // TODO!()
                                         // Check if there is required things active
     let actual_key = key_field.as_slice();
     // Use unwrap since we check them before
-    let base = new_password(
-        &new_name_field.value,
-        &new_pass_field.value,
-        &date,
-        &new_desc_field.value,
-        actual_key,
-    );
+    let base = new_password(p_name, p_pass, &date, p_desc, actual_key);
 
     if let Err(err) = origin_add(&base) {
         return Err(format!("Add Password: {}", err));
     }
 
-    println!("Successfully Encrypted your password: {:?}", base.value);
-
-    if is_new_key {
-        println!(
-            "[!] This is your new key: {:?} Keep this for your own",
-            actual_key
-        );
-    }
-
-    Ok(())
+    Ok(format!(
+        "Successfully Encrypted your password: {:?}",
+        base.value
+    ))
 }
 
 pub fn generate_random_key() -> Vec<u8> {
@@ -64,15 +50,15 @@ pub fn generate_random_key() -> Vec<u8> {
 }
 
 pub fn new_password(
-    name: &String,
-    password: &String,
-    date: &String,
-    description: &String,
+    name: &str,
+    password: &str,
+    date: &str,
+    description: &str,
     key: &[u8],
 ) -> password::Password {
     // TODO: Find a better way that cloning the value
     let mut base: password::Password =
-        password::Password::new(name.clone(), description.clone(), date.clone());
+        password::Password::new(name.to_string(), description.to_string(), date.to_string());
     let gna = Key::<Aes256Gcm>::from_slice(key);
     let g_key = Aes256Gcm::new(gna);
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
@@ -196,30 +182,34 @@ fn check_deps_partial(arg: &str, deps: Vec<&'static str>) -> bool {
     false
 }
 
+// TODO needs to be cheked
 pub fn remove_origin_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    let result = String::new();
+    if config.get("all").unwrap().isActive() {
+        if (!util::remove_origin()) {
+            return Err(format!("There was a problem when removing your origin"));
+        }
+        return Ok(format!("Successfully removed the origin environment"));
+    } else if config.get("name").unwrap().isActive() {
+        let pass_obj = config.get("name").unwrap().call(config);
+        if let Err(x) = pass_obj {
+            return Err(format!("There is a problem when running name argument"));
+        }
 
-    // let caller = config.get("remove").findDep("name");
-    // caller.call();
+        if (!util::remove_password(pass_obj.unwrap().as_str())) {
+            return Err(format!("There is a problem when removing your password"));
+        }
 
-    // let remove_obj = config.get("remove").unwrap();
-    //
-    // remove_obj.validate_value(vec!["all", "name", "date"])?;
-    //
-    // let result: String = match remove_obj.get_value().as_str() {
-    //     "all" => {
-    //         if (!util::remove_origin()) {
-    //             return Err(format!("There was a problem when removing your origin"));
-    //         }
-    //         format!("Successfully removed the origin environment")
-    //     }
-    //     // name
-    //     &_ => {
-    //         format!("NFOUND")
-    //     }
-    // };
+        return Ok(format!(
+            "Successfully removed your {} password",
+            config.get("name").unwrap().get_value()
+        ));
+    }
 
-    return Ok(result);
+    return Err(format!("Please enter valid command!"));
+}
+
+pub fn password_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    return Ok(config.get("password").unwrap().get_value());
 }
 
 pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
@@ -236,12 +226,11 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
     }
 
     let name = config.get("name").unwrap().call(config).unwrap();
+    let pass_value = config.get("password").unwrap().call(config).unwrap();
     let description = config.get("description").unwrap().get_value();
     let key = config.get("key").unwrap().get_value();
 
-    println!("Creating password with this name: {}", name);
-    println!("Creating password with this description: {}", description);
-    // println!("Creating password with this key: {}", key); // TODO: Fancy printing key
+    println!("Creating password with this information:\nName: {}\nPassword: {}\ndescription: {}\nkey: ****", name, pass_value, description);
 
     // Check the key validation
     if let Err(err) = validate_user_key(&key) {
@@ -262,7 +251,19 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
 
     let m_key = m_key.unwrap();
 
-    Ok(format!("{:?}", m_key))
+    if let Err(err) = add_new_password(
+        name.as_str(),
+        description.as_str(),
+        pass_value.as_str(),
+        &m_key,
+    ) {
+        return Err(format!(
+            "Can't create new password cause: {}",
+            err.to_string()
+        ));
+    }
+
+    Ok(format!("your password has been sucsessfully created"))
 }
 
 // A function to create/initialize the origin environment
