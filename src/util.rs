@@ -117,13 +117,13 @@ pub fn origin_show(name: &String) -> Result<password::Password, String> {
     }
 
     // Read the data and meta files and Check for data/meta readabliti
-    let data = fs::read(format!("./pass/{}/data", name));
+    let data = fs::read(format!("./.pass/{}/data", name));
     if let Err(err) = data {
         return Err(err.to_string());
     }
 
     // Read the meta file
-    let meta = fs::read(format!("./pass/{}/meta", name));
+    let meta = fs::read(format!("./.pass/{}/meta", name));
     if let Err(err) = meta {
         return Err(err.to_string());
     }
@@ -165,7 +165,7 @@ pub fn list_origin() -> Result<Vec<Password>, String> {
     let mut counter = 0;
 
     // get the files from origin
-    if let Ok(v) = fs::read_dir("./pass") {
+    if let Ok(v) = fs::read_dir("./.pass") {
         println!("This is the saved passwords list: \n");
         for items in v {
             if let Err(_) = items {

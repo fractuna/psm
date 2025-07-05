@@ -77,7 +77,7 @@ pub fn new_password(
 }
 
 // Show the password to the user
-pub fn show_password(name: &String, key: &String) -> Result<(), String> {
+pub fn show_password(name: &str, key: &str) -> Result<(), String> {
     // Get the password by its name
     let upr: Result<password::Password, String> = util::origin_show(&name.to_string());
     let key = BASE64_STANDARD.decode(key);
@@ -269,13 +269,33 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
     Ok(format!("your password has been sucsessfully created"))
 }
 
+pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    let deps = vec!["key", "name"];
+    if (!check_deps(config, deps)) {
+        return Err(format!("Please provid valid arguments"));
+    }
+
+    let key_obj = config.get("key").unwrap();
+    let name_obj = config.get("name").unwrap();
+
+    if let Err(err) = validate_user_key(key_obj.get_value().as_str()) {
+        return Err(format!("Key: {err}"));
+    }
+
+    if let Err(err) = show_password(name_obj.get_value().as_str(), key_obj.get_value().as_str()) {
+        return Err(format!("Print: {}", err));
+    }
+
+    Ok(format!(""))
+}
+
 // A function to create/initialize the origin environment
 pub fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
     // No deps for this function
 
     // First, check if there is already a origin dir
     if util::is_origin_exists() {
-        return Err(format!("You already have the origin, please remove the old one if you want to use this command\nNotice: you can remove the origin by using 'psm remove origin'"));
+        return Err(format!("You already have the origin, please remove the old one if you want to use this command\nNotice: you can remove the origin by using 'psm remove all'"));
     }
 
     // Second: Try to create the origin dir

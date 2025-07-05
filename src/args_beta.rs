@@ -6,7 +6,9 @@ use std::{
 };
 
 use crate::{
-    core::{create_callback, init_callback, password_callback, remove_origin_callback},
+    core::{
+        create_callback, get_callback, init_callback, password_callback, remove_origin_callback,
+    },
     VERSION,
 };
 
@@ -152,10 +154,6 @@ fn version_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String,
     Ok(format!("Version {}", VERSION))
 }
 
-fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    Ok(format!("3.0.1"))
-}
-
 fn name_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
     Ok(config.get("name").unwrap().get_value())
 }
@@ -177,6 +175,13 @@ pub fn argument_parser(
             Some(init_callback),
             true,
             "To initilize the password environment",
+            1,
+        ),
+        ArgAction::new(
+            "get",
+            Some(get_callback),
+            false,
+            "To get the password information",
             1,
         ),
         ArgAction::new(
@@ -270,6 +275,8 @@ pub fn argument_parser(
                 }
 
                 key_tmp = v;
+            } else {
+                return Err(format!("Please provide valid arguents"));
             }
         } else if mode == false {
             let mut b_keys = keys.borrow_mut();

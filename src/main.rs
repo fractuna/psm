@@ -20,7 +20,7 @@ fn main() {
             exit(1);
         });
     let result_document = args_beta::createDoc(&parsed_args.0);
-    println!("{result_document}");
+    // println!("{result_document}");
     // // println!("{:?}", config);
     let res: Result<String, String> = core::process_args(&mut parsed_args.0, &parsed_args.1);
     match res {
@@ -31,9 +31,7 @@ fn main() {
         }
         Err(err) => {
             banner(VERSION);
-            println!("ERROR: {}", err)
+            println!("\nERROR: {}", err)
         }
     }
-    //println!("{:?}", config);
-    //banner(); // show the banner of this program
 }
