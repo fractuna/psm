@@ -184,28 +184,31 @@ fn check_deps_partial(arg: &str, deps: Vec<&'static str>) -> bool {
 
 // TODO needs to be cheked
 pub fn remove_origin_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    if config.get("all").unwrap().isActive() {
-        if (!util::remove_origin()) {
-            return Err(format!("There was a problem when removing your origin"));
+    let remove_obj = config.get("remove").unwrap();
+    match remove_obj.get_value().as_str() {
+        "all" => {
+            if !util::remove_origin() {
+                return Err(format!("There was a problem when removing your origin"));
+            }
+            return Ok(format!("Successfully removed the origin environment"));
         }
-        return Ok(format!("Successfully removed the origin environment"));
-    } else if config.get("name").unwrap().isActive() {
-        let pass_obj = config.get("name").unwrap().call(config);
-        if let Err(x) = pass_obj {
-            return Err(format!("There is a problem when running name argument"));
+        &_ => {
+            let pass_obj = config.get("name").unwrap().call(config);
+
+            if let Err(_) = pass_obj {
+                return Err(format!("There is a problem when running name argument"));
+            }
+
+            if !util::remove_password(pass_obj.unwrap().as_str()) {
+                return Err(format!("There is a problem when removing your password"));
+            }
+
+            return Ok(format!(
+                "Successfully removed your {} password",
+                remove_obj.get_value()
+            ));
         }
-
-        if (!util::remove_password(pass_obj.unwrap().as_str())) {
-            return Err(format!("There is a problem when removing your password"));
-        }
-
-        return Ok(format!(
-            "Successfully removed your {} password",
-            config.get("name").unwrap().get_value()
-        ));
-    }
-
-    return Err(format!("Please enter valid command!"));
+    };
 }
 
 pub fn password_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
@@ -310,7 +313,11 @@ pub fn process_args(
     // println!("This is the master key: {}", master_key);
 
     // Call the proporiet function based on the master_key (main arg)
-    let g_obj = config.get(master_key).unwrap();
+    let g_obj = config.get(master_key);
+    if let None = g_obj {
+        return Err(format!("Please enter a valid argument..."));
+    }
+    let g_obj = g_obj.unwrap();
     if g_obj.get_priority() <= 0 {
         return Err(format!("Please pass the correct arguments"));
     }

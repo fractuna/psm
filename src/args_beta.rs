@@ -5,7 +5,10 @@ use std::{
     rc::Rc,
 };
 
-use crate::core::{create_callback, init_callback, password_callback, remove_origin_callback};
+use crate::{
+    core::{create_callback, init_callback, password_callback, remove_origin_callback},
+    VERSION,
+};
 
 type ArgCallback = fn(&HashMap<&'static str, ArgAction>) -> Result<String, String>;
 
@@ -16,8 +19,8 @@ pub struct ArgAction {
     only_key: bool,
     used: bool,
     callback: Option<ArgCallback>,
+    next: String,
     description: &'static str,
-    deps: RefCell<HashMap<&'static str, ArgAction>>,
     order: usize,
     priority: usize,
 }
@@ -38,8 +41,8 @@ impl ArgAction {
                 callback,
                 used: false,
                 only_key,
+                next: format!(""),
                 description,
-                deps: RefCell::new(HashMap::new()),
                 order: 0,
                 priority,
             },
@@ -62,8 +65,20 @@ impl ArgAction {
         self.value = value;
     }
 
+    pub fn call_next(&self, config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+        config.get(self.get_next()).unwrap().call(config)
+    }
+
     pub fn get_priority(&self) -> usize {
         self.priority
+    }
+
+    pub fn set_next(&mut self, next: String) {
+        self.next = next;
+    }
+
+    pub fn get_next(&self) -> &str {
+        self.next.as_str()
     }
 
     pub fn set_priority(&mut self, value: usize) {
@@ -84,23 +99,12 @@ impl ArgAction {
     //     Ok(())
     // }
 
-    pub fn activeDep(&self, depen_name: &str) {
-        let mut deps_tmp = self.deps.borrow_mut();
-        if let Some(x) = deps_tmp.get_mut(depen_name) {
-            x.active();
-        }
-    }
-
     // TODO: Use custome callback instead of static method
     pub fn validate_value(&self, deps: Vec<&'static str>) -> Result<(), String> {
         if (!deps.contains(&self.get_value().as_str())) {
             return Err(format!("Can't validate the command mode!"));
         }
         Ok(())
-    }
-
-    pub fn check_deps(&self, depen_name: &str) -> bool {
-        self.deps.borrow_mut().contains_key(depen_name)
     }
 
     pub fn get_desc(&self) -> &'static str {
@@ -142,7 +146,10 @@ pub fn createDoc(p_args: &HashMap<&'static str, ArgAction>) -> String {
 }
 
 fn version_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
-    Ok(format!("{}", crate::VERSION))
+    // if let Ok(x) = config.get("version").unwrap().call_next(config) {
+    //     return Ok(format!("This is the result: {}", x));
+    // }
+    Ok(format!("Version {}", VERSION))
 }
 
 fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
@@ -196,7 +203,7 @@ pub fn argument_parser(
         ArgAction::new(
             "remove",
             Some(remove_origin_callback),
-            true,
+            false,
             "remove data [name, all, date]",
             1,
         ),
@@ -254,6 +261,14 @@ pub fn argument_parser(
                 if x.only_key == false {
                     mode = false;
                 }
+
+                if key_tmp != "" {
+                    b_keys
+                        .get_mut(key_tmp.as_str())
+                        .unwrap()
+                        .set_next(v.clone());
+                }
+
                 key_tmp = v;
             }
         } else if mode == false {
@@ -265,11 +280,7 @@ pub fn argument_parser(
                 // wanted key
 
                 if x.isActive() {
-                    if x.check_deps(v.as_str()) {
-                        x.activeDep(v.as_str());
-                    } else {
-                        x.set_value(v.clone());
-                    }
+                    x.set_value(v.clone());
                 }
                 // println!("{:?}", x);
             }
@@ -278,6 +289,6 @@ pub fn argument_parser(
             mode = true
         }
     }
-    println!("{:?}", keys);
+    // println!("{:?}", keys);
     Ok((keys.into_inner(), master_arg))
 }
