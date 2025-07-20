@@ -1,9 +1,4 @@
-use core::borrow;
-use std::{
-    cell::{Ref, RefCell},
-    collections::HashMap,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     core::{
@@ -247,7 +242,7 @@ pub fn argument_parser(
         RefCell::new(HashMap::from_iter(list_of_keys));
 
     let mut mode: bool = true;
-    let mut arg_map: HashMap<String, String> = HashMap::new();
+    let mut arg_map: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
     let mut key_tmp: String = String::new();
     let mut args_l = args;
     args_l.remove(0); // the program path
@@ -258,7 +253,8 @@ pub fn argument_parser(
             let mut b_keys = keys.borrow_mut();
             let key_obj: Option<&mut ArgAction> = b_keys.get_mut(v.as_str());
             if let Some(x) = key_obj {
-                arg_map.insert(String::from(x.get_key()), format!("TMP"));
+                // let arg_map_shared = arg_map.get_mut();
+                // arg_map_shared.insert(String::from(x.get_key()), format!("TMP"));
                 // x.set_value(v.clone());
                 order_counter += 1;
                 x.set_order(order_counter);
@@ -296,6 +292,22 @@ pub fn argument_parser(
             mode = true
         }
     }
+
+    let keys_to_remove: Vec<&str> = {
+        let map_ref = keys.borrow();
+        map_ref
+            .iter()
+            .filter(|(_, obj)| !obj.isActive())
+            .map(|(k, _)| *k)
+            .collect()
+    };
+    {
+        let mut map_mut = keys.borrow_mut();
+        for key in keys_to_remove {
+            map_mut.remove(&key);
+        }
+    }
+
     // println!("{:?}", keys);
     Ok((keys.into_inner(), master_arg))
 }

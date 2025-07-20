@@ -331,23 +331,29 @@ pub fn process_args(
     master_key: &str,
 ) -> Result<String, String> {
     // println!("This is the master key: {}", master_key);
-
     // Call the proporiet function based on the master_key (main arg)
-    let g_obj = config.get(master_key);
-    if let None = g_obj {
-        return Err(format!("Please enter a valid argument..."));
+    // let g_obj = config.get(master_key);
+    println!("{:?}", config);
+    for i in config {
+        if i.1.get_priority() >= 1 {
+            let g_obj = i.1;
+            // if let None = g_obj {
+            //     return Err(format!("Please enter a valid argument..."));
+            // }
+            // let g_obj = g_obj.unwrap();
+            // if g_obj.get_priority() <= 0 {
+            //     return Err(format!("Please pass the correct arguments"));
+            // }
+            let result = g_obj.call(&config);
+            if let Err(error) = result {
+                return Err(error);
+            }
+            // let result: String = match *name {
+            // println!("{}", result.unwrap());
+            return Ok(result.unwrap());
+        }
     }
-    let g_obj = g_obj.unwrap();
-    if g_obj.get_priority() <= 0 {
-        return Err(format!("Please pass the correct arguments"));
-    }
-    let result = g_obj.call(&config);
-    if let Err(error) = result {
-        return Err(error);
-    }
-    // let result: String = match *name {
-    // println!("{}", result.unwrap());
-    Ok(result.unwrap())
+    return Err(format!("Please provide a valid argument"));
     /*
         if  {
             if let Err(err) = fs::create_dir("./pass") {
