@@ -285,9 +285,7 @@ pub fn argument_parser(
                 if x.isActive() {
                     x.set_value(v.clone());
                 }
-                // println!("{:?}", x);
             }
-            // arg_map.insert(key_tmp.clone(), v);
             key_tmp = String::default();
             mode = true
         }

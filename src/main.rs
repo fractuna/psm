@@ -6,7 +6,7 @@ mod util;
 use std::{collections::HashMap, env, process::exit};
 
 use args::{argument_parser, ArgAction};
-use util::banner;
+use util::{Info, Warn, Error};
 
 
 const VERSION: &'static str = "1.0.3";
@@ -15,10 +15,12 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let mut parsed_args: (HashMap<&'static str, ArgAction>, String) = argument_parser(args)
         .unwrap_or_else(|err: String| {
-            banner(VERSION);
-            println!("\n{}", err);
+            // banner(VERSION);
+            println!("\nERROR: {}", err);
+            Error(err.as_str());
             exit(1);
         });
+    // println!("{:?}", &parsed_args);
     let result_document = args::createDoc(&parsed_args.0);
     // println!("{result_document}");
     // // println!("{:?}", config);
@@ -30,8 +32,9 @@ fn main() {
             }
         }
         Err(err) => {
-            banner(VERSION);
-            println!("\nERROR: {}", err)
+            // banner(VERSION);
+            Error(err.as_str());
+            // println!("\nERROR: {}", err)
         }
     }
 }

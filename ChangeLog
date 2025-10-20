@@ -3,3 +3,7 @@
 
 - Added the beta new argument reader
 	Finally! switching to HashMap argument reader :>
+
+- Switched to new arg reader (get out of beta)
+	Maybe there will be some problems with it, but it's good to use it instead
+	of the old one

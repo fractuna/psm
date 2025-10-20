@@ -6,7 +6,7 @@ use std::{fs, result};
 // use crate::args::{CfgField, Config};
 use crate::args::{get_arg_by_order, ArgAction};
 use crate::password::{self};
-use crate::util::{self, is_origin_exists, origin_add, remove_origin};
+use crate::util::{self, is_origin_exists, origin_add, remove_origin, Info};
 use aes_gcm::aead::Nonce;
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -67,12 +67,6 @@ pub fn new_password(
     base.set_value(ciphertext.unwrap(), nonce);
     base.is_enc = true;
 
-    println!(
-        "This is the generated password bytes: {:?}",
-        password.as_bytes(),
-    );
-    // println!("This is the Text {:?}", ciphertext);
-    // println!("{:?}", ciphertext);
     base
 }
 
@@ -121,8 +115,10 @@ pub fn show_password(name: &str, key: &str) -> Result<(), String> {
     let result_pass = ciphertext.unwrap();
     upr.is_enc = false;
 
+    Info("Found a password with that name");
+
     println!(
-        "name: {}\ndescription: {}\ndate: {}\npassword: {}",
+        "\n|\t{}\n| description: {}\n| date: {}\n| password: {}",
         upr.name,
         upr.description,
         upr.date,
@@ -173,6 +169,16 @@ fn check_deps(config: &HashMap<&'static str, ArgAction>, deps: Vec<&'static str>
     return true;
 }
 
+// INFO: Since there is not all the arguments available, this func will change too
+fn check_deps_beta(config: &HashMap<&'static str, ArgAction>, deps: Vec<&'static str>) -> bool {
+    for i in deps {
+        if let None = config.get(i) {
+            return false;
+        }
+    }
+    return true;
+}
+
 fn check_deps_partial(arg: &str, deps: Vec<&'static str>) -> bool {
     let sucsess: bool = false;
     for i in deps {
@@ -217,6 +223,8 @@ pub fn password_callback(config: &HashMap<&'static str, ArgAction>) -> Result<St
 }
 
 pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    Info("Preparing for creating a new password...");
+
     // First check if origin is initilized
     if (!util::is_origin_exists()) {
         return Err(format!(
@@ -224,9 +232,12 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
         ));
     }
 
+    Info("Found the password origin");
+
     let deps = vec!["name", "description", "key"];
-    if !check_deps(config, deps) {
-        return Err(format!("Can't process because of the deps!"));
+    if !check_deps_beta(config, deps) {
+        // return Err(format!("Can't process because of the deps!"));
+        return Err(format!("Please provide needed arguments."))
     }
 
     let name = config.get("name").unwrap().call(config).unwrap();
@@ -234,7 +245,7 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
     let description = config.get("description").unwrap().get_value();
     let key = config.get("key").unwrap().get_value();
 
-    println!("Creating password with this information:\nName: {}\nPassword: {}\ndescription: {}\nkey: ****", name, pass_value, description);
+    println!("[INFO] Validating your key...");
 
     // Check the key validation
     if let Err(err) = validate_user_key(&key) {
@@ -243,6 +254,8 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
             err.to_string()
         ));
     }
+
+    println!("[INFO] Your key is ok");
 
     let cur_date = Utc::now();
     let mut base: password::Password =
@@ -271,6 +284,8 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
 }
 
 pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    Info("Searching for that password...");
+
     let deps = vec!["key", "name"];
     if (!check_deps(config, deps)) {
         return Err(format!("Please provid valid arguments"));
@@ -282,6 +297,8 @@ pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String,
     if let Err(err) = validate_user_key(key_obj.get_value().as_str()) {
         return Err(format!("Key: {err}"));
     }
+
+    Info("Your password key is ok") ;
 
     if let Err(err) = show_password(name_obj.get_value().as_str(), key_obj.get_value().as_str()) {
         return Err(format!("Print: {}", err));
@@ -331,10 +348,7 @@ pub fn process_args(
     config: &HashMap<&'static str, ArgAction>,
     master_key: &str,
 ) -> Result<String, String> {
-    // println!("This is the master key: {}", master_key);
-    // Call the proporiet function based on the master_key (main arg)
-    // let g_obj = config.get(master_key);
-    println!("{:?}", config);
+    // println!("{:?}", config);
     for i in config {
         if i.1.get_priority() >= 1 {
             let g_obj = i.1;

@@ -74,7 +74,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
         // if !answer {
         //     return Err(format!("Stop process by user input"));
         // }
-        println!("[!] notice you are updating the exists password");
+        Info("Notice, existed password updated");
     }
 
     let data: String = format!("{}", password.value.clone());
@@ -243,6 +243,19 @@ pub fn remove_origin() -> bool {
 
     return true;
 }
+
+pub fn Info(text: &str) {
+    println!("[INFO] {text}");
+}
+
+pub fn Warn(text: &str) {
+    println!("[WARN] {text}");
+}
+
+pub fn Error(text: &str) {
+    println!("\n[ERROR] {text}");
+}
+
 // Check is there is any global .pass folder
 pub fn is_origin_exists() -> bool {
     if Path::new(".pass").exists() {
