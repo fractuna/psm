@@ -8,19 +8,15 @@ use std::path::Path;
 
 pub fn banner(version: &'static str) {
     println!(
-        "MyPass password manager version {} \n\
-        A simple and powerfull password manager \n\
-        \nUsage: mypass [OPTIONS...] \n\
-            \
-        \t-k Add the key \n\
-        \t-a Add a new password \n\
-        \t-n Set name for your new password \n\
-        \t-d Set description for your new password \n\
-        \t-A Add a new password with TUI menu \n\
-        \t-l List ALl of your password by their name \n\
-        \t-L List all of your password by their name and description and date \n\
-        \t-v get the version of this program \n\
-        \t-m modify password information",
+        "psm password manager version {}
+Usage: psm [OPTIONS...] \n
+  create - to create a new password
+  name - set name for your password
+  password - set the password
+  description - set description of your password
+  get - get the password
+  info - more info about how it works
+  key - set key for password",
         version,
     )
 }
@@ -263,6 +259,6 @@ mod tests {
     fn it_works() {
         let sample: String = String::from("This is the text\nThis is the new line");
         let l_data = sample.split("\n").collect::<Vec<&str>>();
-        println!("This is the first line {}", l_data[0]);
+        // println!("This is the first line {}", l_data[0]);
     }
 }

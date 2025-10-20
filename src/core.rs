@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::{fs, result};
 
-use crate::args::{CfgField, Config};
-use crate::args_beta::{get_arg_by_order, ArgAction};
+// use crate::args::{CfgField, Config};
+use crate::args::{get_arg_by_order, ArgAction};
 use crate::password::{self};
 use crate::util::{self, is_origin_exists, origin_add, remove_origin};
 use aes_gcm::aead::Nonce;
@@ -132,9 +132,10 @@ pub fn show_password(name: &str, key: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn print_list_passwords(field: &CfgField) -> Result<(), String> {
-    todo!("Print the list of user passwords's metadata");
-}
+// TODO: Wait for this function, cause we change to new args reader
+// pub fn print_list_passwords(field: &CfgField) -> Result<(), String> {
+//     todo!("Print the list of user passwords's metadata");
+// }
 
 // A simple check to see if the user input is AES key or Hash Value
 pub fn validate_user_key(key: &str) -> Result<(), String> {

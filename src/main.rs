@@ -1,13 +1,13 @@
-use std::{collections::HashMap, env, process::exit};
-mod args_beta;
-
-use args_beta::{argument_parser, ArgAction};
-use util::banner;
-
-pub mod args;
+mod args;
 mod core;
 mod password;
 mod util;
+
+use std::{collections::HashMap, env, process::exit};
+
+use args::{argument_parser, ArgAction};
+use util::banner;
+
 
 const VERSION: &'static str = "1.0.3";
 
@@ -19,7 +19,7 @@ fn main() {
             println!("\n{}", err);
             exit(1);
         });
-    let result_document = args_beta::createDoc(&parsed_args.0);
+    let result_document = args::createDoc(&parsed_args.0);
     // println!("{result_document}");
     // // println!("{:?}", config);
     let res: Result<String, String> = core::process_args(&mut parsed_args.0, &parsed_args.1);
