@@ -1,10 +1,16 @@
 use crate::password;
 use crate::password::Password;
 use md5;
+use std::env;
 use std::fs;
 use std::io::stdin;
 use std::io::Write;
 use std::path::Path;
+
+// Cause we can't use global variables
+pub fn ORIGIN_PATH() -> String {
+    return format!("{}/.psm", env::home_dir().unwrap().display());
+}
 
 pub fn banner(version: &'static str) {
     println!(
@@ -16,7 +22,7 @@ Usage: psm [OPTIONS...] \n
   description - set description of your password
   get - get the password
   info - more info about how it works
-  key - set key for password",
+  key - set key for password\n",
         version,
     )
 }
@@ -59,7 +65,7 @@ pub fn get_hash(key: &str) -> String {
 // Add password to the origin
 pub fn origin_add(password: &password::Password) -> Result<(), String> {
     if !is_data_exists(&password.name) {
-        if let Err(_) = fs::create_dir(format!(".pass/{}", &password.name)) {
+        if let Err(_) = fs::create_dir(format!("{}/{}", &ORIGIN_PATH(), &password.name)) {
             return Err(format!("[!] Can't find the password folder"));
         }
         // Make the meta file for saving metadata about the origin
@@ -80,7 +86,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
     let data: String = format!("{}", password.value.clone());
     let meta: String = format!("{}\n{}", password.description, password.date);
 
-    let file_data = fs::File::create(format!("./.pass/{}/data", &password.name));
+    let file_data = fs::File::create(format!("{}/{}/data", &ORIGIN_PATH(), &password.name));
     if let Err(_) = file_data {
         return Err(format!("Can't make data file_data"));
     }
@@ -90,7 +96,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
         return Err(format!("Can't write to the file_data"));
     }
 
-    let file_meta = fs::File::create(format!("./.pass/{}/meta", &password.name));
+    let file_meta = fs::File::create(format!("{}/{}/meta", &ORIGIN_PATH(), &password.name));
     if let Err(_) = file_meta {
         return Err(format!("Can't make meta)) file"));
     }
@@ -102,6 +108,15 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
 
     Ok(())
 }
+
+pub fn create_origin() -> Result<(), String> {
+    let result = fs::create_dir(&ORIGIN_PATH());
+    if let Err(err) = result {
+        return Err(format!("Can't make the origin folder cause: {}", err));
+    }
+    return Ok(());
+}
+
 // Show password from origin
 pub fn origin_show(name: &String) -> Result<password::Password, String> {
     let mut u_pass = password::Password::default();
@@ -113,13 +128,13 @@ pub fn origin_show(name: &String) -> Result<password::Password, String> {
     }
 
     // Read the data and meta files and Check for data/meta readabliti
-    let data = fs::read(format!("./.pass/{}/data", name));
+    let data = fs::read(format!("{}/{}/data", &ORIGIN_PATH(), name));
     if let Err(err) = data {
         return Err(err.to_string());
     }
 
     // Read the meta file
-    let meta = fs::read(format!("./.pass/{}/meta", name));
+    let meta = fs::read(format!("{}/{}/meta", &ORIGIN_PATH(), name));
     if let Err(err) = meta {
         return Err(err.to_string());
     }
@@ -128,7 +143,7 @@ pub fn origin_show(name: &String) -> Result<password::Password, String> {
     let data = String::from_utf8(data.unwrap());
     let meta = String::from_utf8(meta.unwrap());
 
-    // TOOD: Better warning handeling
+    // TODO: Better warning handeling
     if let Err(err) = data {
         return Err(err.to_string());
     } else if let Err(err1) = meta {
@@ -161,7 +176,7 @@ pub fn list_origin() -> Result<Vec<Password>, String> {
     let mut counter = 0;
 
     // get the files from origin
-    if let Ok(v) = fs::read_dir("./.pass") {
+    if let Ok(v) = fs::read_dir(&ORIGIN_PATH()) {
         println!("This is the saved passwords list: \n");
         for items in v {
             if let Err(_) = items {
@@ -219,7 +234,7 @@ pub fn remove_password(name: &str) -> bool {
         return false;
     }
 
-    if let Err(_) = fs::remove_dir_all(format!(".pass/{}", name)) {
+    if let Err(_) = fs::remove_dir_all(format!("{}/{}", &ORIGIN_PATH(), name)) {
         return false;
     }
 
@@ -227,7 +242,7 @@ pub fn remove_password(name: &str) -> bool {
 }
 
 pub fn is_data_exists(name: &str) -> bool {
-    if Path::new(format!(".pass/{}", name).as_str()).exists() {
+    if Path::new(format!("{}/{}", &ORIGIN_PATH(), name).as_str()).exists() {
         return true;
     }
     return false;
@@ -237,7 +252,7 @@ pub fn remove_origin() -> bool {
     if !is_origin_exists() {
         return false;
     }
-    if let Err(_) = fs::remove_dir_all(".pass") {
+    if let Err(_) = fs::remove_dir_all(&ORIGIN_PATH()) {
         return false;
     }
 
@@ -258,7 +273,7 @@ pub fn Error(text: &str) {
 
 // Check is there is any global .pass folder
 pub fn is_origin_exists() -> bool {
-    if Path::new(".pass").exists() {
+    if Path::new(&ORIGIN_PATH()).exists() {
         return true;
     }
     return false;

@@ -6,7 +6,8 @@ use std::{fs, result};
 // use crate::args::{CfgField, Config};
 use crate::args::{get_arg_by_order, ArgAction};
 use crate::password::{self};
-use crate::util::{self, is_origin_exists, origin_add, remove_origin, Info};
+use crate::util::{self, banner, is_origin_exists, origin_add, remove_origin, Info};
+use crate::VERSION;
 use aes_gcm::aead::Nonce;
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -90,13 +91,14 @@ pub fn show_password(name: &str, key: &str) -> Result<(), String> {
     }
     let mut upr: password::Password = upr.unwrap();
 
-    // TODO: Check the unwrap
-    let f_pass = BASE64_STANDARD.decode(&upr.value).unwrap();
-    let f_pass_res = f_pass.as_slice();
+    let f_pass = BASE64_STANDARD.decode(&upr.value);
 
-    // println!("This is the read key from args: {:?}", key.as_slice());
-    // println!("This is the read password base64 from file: {}", &upr.value);
-    // println!("This is the read password from file: {:?}", f_pass_res);
+    if let Err(_) = f_pass {
+        return Err(format!("Can't handle the password format!\nit may that password has a problem, please re-create a new one"));
+    }
+
+    let f_pass = f_pass.unwrap();
+    let f_pass_res = f_pass.as_slice();
 
     let nonce_res = &f_pass_res[..NONCE_SIZE_SAMPLE];
     let f_pass_res = &f_pass_res[NONCE_SIZE_SAMPLE..];
@@ -237,7 +239,7 @@ pub fn create_callback(config: &HashMap<&'static str, ArgAction>) -> Result<Stri
     let deps = vec!["name", "description", "key"];
     if !check_deps_beta(config, deps) {
         // return Err(format!("Can't process because of the deps!"));
-        return Err(format!("Please provide needed arguments."))
+        return Err(format!("Please provide needed arguments."));
     }
 
     let name = config.get("name").unwrap().call(config).unwrap();
@@ -288,7 +290,7 @@ pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String,
 
     let deps = vec!["key", "name"];
     if (!check_deps(config, deps)) {
-        return Err(format!("Please provid valid arguments"));
+        return Err(format!("Please provide key and name"));
     }
 
     let key_obj = config.get("key").unwrap();
@@ -298,13 +300,18 @@ pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String,
         return Err(format!("Key: {err}"));
     }
 
-    Info("Your password key is ok") ;
+    Info("Your password key is ok");
 
     if let Err(err) = show_password(name_obj.get_value().as_str(), key_obj.get_value().as_str()) {
         return Err(format!("Print: {}", err));
     }
 
     Ok(format!(""))
+}
+
+pub fn help_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    banner(VERSION);
+    Ok(String::default())
 }
 
 // A function to create/initialize the origin environment
@@ -317,8 +324,11 @@ pub fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String
     }
 
     // Second: Try to create the origin dir
-    if let Err(err) = fs::create_dir("./.pass") {
-        return Err(format!("Can't make the origin folder"));
+    // if let Err(err) = fs::create_dir("./.pass") {
+    //     return Err(format!("Can't make the origin folder"));
+    // }
+    if let Err(err) = util::create_origin() {
+        return Err(err);
     }
 
     // Next: try to make a new key and base64 it
@@ -344,31 +354,47 @@ pub fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String
     ));
 }
 
+pub fn info_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String, String> {
+    return Ok(format!(
+        "A brief into how to use psm:\n
+First you need to initilize an origin, you can it by typing:
+`psm init`
+
+Then you need to copy your key and save it somemwhere.
+(Notice if you forgot that key, you will not be able to see your passwords again!)
+
+After that you can add your first password, by typing:
+`psm create name <your-password-name> password <your-actuall-password> description <your-password description> key <your-ley>
+
+Then you can decrypr/see your password by typing:
+`psm get name <your-password-name> key <your-key>`
+
+In the end if you already have an origin and you want to start over, you can do:
+`psm remove all`
+
+(Notice this will delete all your current passwords)
+        "
+    ));
+}
+
 pub fn process_args(
     config: &HashMap<&'static str, ArgAction>,
     master_key: &str,
 ) -> Result<String, String> {
-    // println!("{:?}", config);
     for i in config {
         if i.1.get_priority() >= 1 {
             let g_obj = i.1;
-            // if let None = g_obj {
-            //     return Err(format!("Please enter a valid argument..."));
-            // }
-            // let g_obj = g_obj.unwrap();
-            // if g_obj.get_priority() <= 0 {
-            //     return Err(format!("Please pass the correct arguments"));
-            // }
             let result = g_obj.call(&config);
             if let Err(error) = result {
                 return Err(error);
             }
-            // let result: String = match *name {
-            // println!("{}", result.unwrap());
             return Ok(result.unwrap());
         }
     }
-    return Err(format!("Please provide a valid argument"));
+    return Err(format!(
+        "Can't find {} command, please use 'psm help' for usage",
+        master_key
+    ));
     /*
         if  {
             if let Err(err) = fs::create_dir("./pass") {

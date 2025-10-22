@@ -2,7 +2,8 @@ use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     core::{
-        create_callback, get_callback, init_callback, password_callback, remove_origin_callback,
+        create_callback, get_callback, help_callback, info_callback, init_callback,
+        password_callback, remove_origin_callback,
     },
     VERSION,
 };
@@ -229,6 +230,20 @@ pub fn argument_parser(
             0,
         ),
         ArgAction::new(
+            "help",
+            Some(help_callback),
+            true,
+            "Show the help command",
+            1,
+        ),
+        ArgAction::new(
+            "info",
+            Some(info_callback),
+            true,
+            "More info how it works",
+            1,
+        ),
+        ArgAction::new(
             "key",
             Some(key_callback),
             false,
@@ -272,7 +287,10 @@ pub fn argument_parser(
 
                 key_tmp = v;
             } else {
-                return Err(format!("Please provide valid arguents"));
+                return Err(format!(
+                    "Can't find '{}' command, please use 'psm help' for usage",
+                    master_arg
+                ));
             }
         } else if mode == false {
             let mut b_keys = keys.borrow_mut();

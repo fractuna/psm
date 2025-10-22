@@ -1,6 +1,6 @@
 [package]
-name = "mypass"
-version = "0.1.0"
+name = "psm"
+version = "3.0.6"
 edition = "2021"
 
 [dependencies]
