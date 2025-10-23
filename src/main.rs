@@ -10,7 +10,7 @@ use util::Error;
 
 use crate::util::banner;
 
-const VERSION: &'static str = "3.0.3";
+const VERSION: &'static str = "3.0.5";
 
 fn main() {
     let args: Vec<String> = env::args().collect();

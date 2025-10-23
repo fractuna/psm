@@ -2,9 +2,9 @@ use crate::password;
 use crate::password::Password;
 use md5;
 use std::env;
-use std::fs;
-use std::io::stdin;
+use std::fs::{create_dir, read, read_dir, remove_dir_all, File};
 use std::io::Write;
+use std::io::{stdin, Read};
 use std::path::Path;
 
 // Cause we can't use global variables
@@ -65,7 +65,7 @@ pub fn get_hash(key: &str) -> String {
 // Add password to the origin
 pub fn origin_add(password: &password::Password) -> Result<(), String> {
     if !is_data_exists(&password.name) {
-        if let Err(_) = fs::create_dir(format!("{}/{}", &ORIGIN_PATH(), &password.name)) {
+        if let Err(_) = create_dir(format!("{}/{}", &ORIGIN_PATH(), &password.name)) {
             return Err(format!("[!] Can't find the password folder"));
         }
         // Make the meta file for saving metadata about the origin
@@ -83,10 +83,11 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
         Info("Notice, existed password updated");
     }
 
+    // TODO: Check this out
     let data: String = format!("{}", password.value.clone());
     let meta: String = format!("{}\n{}", password.description, password.date);
 
-    let file_data = fs::File::create(format!("{}/{}/data", &ORIGIN_PATH(), &password.name));
+    let file_data = File::create(format!("{}/{}/data", &ORIGIN_PATH(), &password.name));
     if let Err(_) = file_data {
         return Err(format!("Can't make data file_data"));
     }
@@ -96,7 +97,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
         return Err(format!("Can't write to the file_data"));
     }
 
-    let file_meta = fs::File::create(format!("{}/{}/meta", &ORIGIN_PATH(), &password.name));
+    let file_meta = File::create(format!("{}/{}/meta", &ORIGIN_PATH(), &password.name));
     if let Err(_) = file_meta {
         return Err(format!("Can't make meta)) file"));
     }
@@ -110,7 +111,7 @@ pub fn origin_add(password: &password::Password) -> Result<(), String> {
 }
 
 pub fn create_origin() -> Result<(), String> {
-    let result = fs::create_dir(&ORIGIN_PATH());
+    let result = create_dir(&ORIGIN_PATH());
     if let Err(err) = result {
         return Err(format!("Can't make the origin folder cause: {}", err));
     }
@@ -128,13 +129,13 @@ pub fn origin_show(name: &String) -> Result<password::Password, String> {
     }
 
     // Read the data and meta files and Check for data/meta readabliti
-    let data = fs::read(format!("{}/{}/data", &ORIGIN_PATH(), name));
+    let data = read(format!("{}/{}/data", &ORIGIN_PATH(), name));
     if let Err(err) = data {
         return Err(err.to_string());
     }
 
     // Read the meta file
-    let meta = fs::read(format!("{}/{}/meta", &ORIGIN_PATH(), name));
+    let meta = read(format!("{}/{}/meta", &ORIGIN_PATH(), name));
     if let Err(err) = meta {
         return Err(err.to_string());
     }
@@ -176,7 +177,7 @@ pub fn list_origin() -> Result<Vec<Password>, String> {
     let mut counter = 0;
 
     // get the files from origin
-    if let Ok(v) = fs::read_dir(&ORIGIN_PATH()) {
+    if let Ok(v) = read_dir(&ORIGIN_PATH()) {
         println!("This is the saved passwords list: \n");
         for items in v {
             if let Err(_) = items {
@@ -234,11 +235,35 @@ pub fn remove_password(name: &str) -> bool {
         return false;
     }
 
-    if let Err(_) = fs::remove_dir_all(format!("{}/{}", &ORIGIN_PATH(), name)) {
+    if let Err(_) = remove_dir_all(format!("{}/{}", &ORIGIN_PATH(), name)) {
         return false;
     }
 
     true
+}
+
+pub fn get_origin_metadata() -> Result<String, &'static str> {
+    let mut f_key: String = String::new();
+    if let Ok(mut v) = File::open(format!("{}/meta", &ORIGIN_PATH())) {
+        if let Err(_) = v.read_to_string(&mut f_key) {
+            return Err("There is a problem in origin structure, please do the `psm --init` again");
+        }
+    } // TODO: Else
+    return Ok(f_key);
+}
+
+// TODO: Create a new type for the return type
+pub fn create_origin_metedata(m_key: &str) -> Result<&'static str, &'static str> {
+    // Next: try to make a meta file to save metadata about origin
+    let origin_meta = File::create(format!("{}/meta", &ORIGIN_PATH()));
+    if let Ok(mut meta_file) = origin_meta {
+        if let Err(_) = meta_file.write_all(get_hash(&m_key).as_bytes()) {
+            return Err("Can't add data to the origin's metadata file");
+        }
+    } else {
+        return Err("Can't create the metadata file for origin");
+    }
+    Ok("Meta file created for your origin")
 }
 
 pub fn is_data_exists(name: &str) -> bool {
@@ -252,7 +277,7 @@ pub fn remove_origin() -> bool {
     if !is_origin_exists() {
         return false;
     }
-    if let Err(_) = fs::remove_dir_all(&ORIGIN_PATH()) {
+    if let Err(_) = remove_dir_all(&ORIGIN_PATH()) {
         return false;
     }
 

@@ -6,7 +6,9 @@ use std::{fs, result};
 // use crate::args::{CfgField, Config};
 use crate::args::{get_arg_by_order, ArgAction};
 use crate::password::{self};
-use crate::util::{self, banner, is_origin_exists, origin_add, remove_origin, Info};
+use crate::util::{
+    self, banner, create_origin_metedata, is_origin_exists, origin_add, remove_origin, Info,
+};
 use crate::VERSION;
 use aes_gcm::aead::Nonce;
 use aes_gcm::{
@@ -137,7 +139,7 @@ pub fn show_password(name: &str, key: &str) -> Result<(), String> {
 
 // A simple check to see if the user input is AES key or Hash Value
 pub fn validate_user_key(key: &str) -> Result<(), String> {
-    let mut f_key: String = String::new();
+    // let mut f_key: String = String::new();
     let hashed_key = format!("{:x}", md5::compute(key));
 
     // check the legnth of key
@@ -145,15 +147,15 @@ pub fn validate_user_key(key: &str) -> Result<(), String> {
         return Err(format!("The key is not valid!"));
     }
 
-    if let Ok(mut v) = fs::File::open("./.pass/meta") {
-        if let Err(_) = v.read_to_string(&mut f_key) {
-            return Err(format!(
-                "There is a problem in origin structure, please do the `psm --init` again"
-            ));
-        }
+    let f_key = util::get_origin_metadata();
+
+    if let Err(err) = f_key {
+        return Err(err.to_string());
     }
 
-    if (hashed_key != f_key) {
+    let f_key = f_key.unwrap();
+
+    if hashed_key != f_key {
         return Err(format!(
             "Your key is not same as what you made before. please give the original key"
         ));
@@ -303,7 +305,7 @@ pub fn get_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String,
     Info("Your password key is ok");
 
     if let Err(err) = show_password(name_obj.get_value().as_str(), key_obj.get_value().as_str()) {
-        return Err(format!("Print: {}", err));
+        return Err(format!("Can't get the password: {}", err));
     }
 
     Ok(format!(""))
@@ -336,14 +338,9 @@ pub fn init_callback(config: &HashMap<&'static str, ArgAction>) -> Result<String
     let n_key = generate_random_key();
     let m_key = BASE64_STANDARD.encode(n_key);
 
-    // Next: try to make a meta file to save metadata about origin
-    let origin_meta = fs::File::create("./.pass/meta");
-    if let Ok(mut meta_file) = origin_meta {
-        if let Err(_) = meta_file.write_all(util::get_hash(&m_key).as_bytes()) {
-            return Err(format!("Can't add data to the origin's metadata file"));
-        }
-    } else {
-        return Err(format!("Can't create the metadata file for origin"));
+    // TODO: We cast the &'static str to String just for now
+    if let Err(err) = create_origin_metedata(&m_key) {
+        return Err(err.to_string()); // TODO For this line
     }
 
     // Print out the key and succsess message
