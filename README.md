@@ -1,5 +1,7 @@
 # <p align=center> **psm** - <i>CLI password manager written in Rust</i> </p>
 
+_**(Notice: it's still in development 🔬)**_
+
 ## What is this tool?
 
 psm can save your passwords and encrypt them with aes encryption standard. this tool tend to be easy and minimal as possible
